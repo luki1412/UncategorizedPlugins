@@ -1,5 +1,5 @@
-# ServerManagement
-Sourcemod server management plugins
+# UncategorizedPlugins
+Uncategorized Sourcemod plugins
 
 [ANY] AdminSpraysOnly - https://forums.alliedmods.net/showthread.php?t=283509 - restrict who can spray
 
