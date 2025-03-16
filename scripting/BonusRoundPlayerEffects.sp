@@ -4,7 +4,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.01"
 
 ConVar g_hCVCharAdminFlag;
 ConVar g_hCVEnabled;
@@ -16,7 +16,6 @@ ConVar g_hCVLosersEffectDuration;
 
 bool   g_bIsPlayerImmune[MAXPLAYERS + 1];
 bool   g_bRoundEnd					   = false;
-bool   g_bLateLoad					   = false;
 
 int	   g_iLastWinningTeam			   = -1;
 int	   g_iCurrentWinnersEffect		   = -1;
@@ -46,7 +45,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		return APLRes_Failure;
 	}
 
-	g_bLateLoad = late;
 	return APLRes_Success;
 }
 
@@ -63,12 +61,6 @@ public void OnPluginStart()
 	HookConVarChange(g_hCVEnabled, EnabledChanged);
 	SetConVarString(hCVversioncvar, PLUGIN_VERSION);
 	AutoExecConfig(true, "Bonus_Round_Player_Effects");
-
-	if (g_bLateLoad)
-	{
-		OnConfigsExecuted();
-	}
-
 	EnabledChanged(g_hCVEnabled, "", "");
 }
 
@@ -132,6 +124,7 @@ public void HookPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 	}
 
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+
 	if (g_bRoundEnd)
 	{
 		EnforceModeOnClient(client, GetEventInt(event, "team"));
@@ -252,6 +245,7 @@ bool IsValidAdmin(int client, const char[] flags)
 	}
 
 	int ibFlags = ReadFlagString(flags);
+
 	if ((GetUserFlagBits(client) & ibFlags) == ibFlags)
 	{
 		return true;
