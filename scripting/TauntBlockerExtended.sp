@@ -7,6 +7,7 @@
 
 #define PLUGIN_VERSION "1.09"
 
+char g_sFilename[PLATFORM_MAX_PATH];
 ConVar g_hCV_tbe_enabled;
 ConVar g_hCV_tbe_taunts;
 ConVar g_hCV_tbe_tauntdamagetoplayers;
@@ -16,7 +17,7 @@ ConVar g_hCV_tbe_tauntitems;
 ConVar g_hCV_tbe_tauntitemstimer;
 Handle g_hTauntItems;
 
-public Plugin myinfo = 
+public Plugin myinfo =
 {
 	name = "Taunt Blocker Extended",
 	author = "luki1412",
@@ -25,48 +26,86 @@ public Plugin myinfo =
 	url = "https://forums.alliedmods.net/member.php?u=43109"
 }
 
-public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) 
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	if (GetEngineVersion() != Engine_TF2) 
+	if (GetEngineVersion() != Engine_TF2)
 	{
-		Format(error, err_max, "This plugin only works for Team Fortress 2.");
+		FormatEx(error, err_max, "This plugin only works for Team Fortress 2.");
 		return APLRes_Failure;
 	}
-	
+
 	return APLRes_Success;
 }
 
 public void OnPluginStart()
 {
-	ConVar g_hCV_tbe_version = CreateConVar("sm_tbe_version", PLUGIN_VERSION, "Taunt Blocker Extended version cvar", FCVAR_NOTIFY|FCVAR_DONTRECORD); 
+	ConVar g_hCV_tbe_version = CreateConVar("sm_tbe_version", PLUGIN_VERSION, "Taunt Blocker Extended version cvar", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	g_hCV_tbe_enabled = CreateConVar("sm_tbe_enabled", "1", "Enables/disables Taunt Blocker Extended", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_hCV_tbe_taunts = CreateConVar("sm_tbe_allowtaunts", "1", "Enables/disables taunts", FCVAR_NONE, true, 0.0, true, 4.0);
 	g_hCV_tbe_tauntdamagetoplayers = CreateConVar("sm_tbe_allowtauntdamagetoplayers", "0", "Allows/disallows players to do taunt damage to other players", FCVAR_NONE, true, 0.0, true, 4.0);
 	g_hCV_tbe_tauntdamagetobuildings = CreateConVar("sm_tbe_allowtauntdamagetobuildings", "0", "Allows/disallows players to do taunt damage to buildings", FCVAR_NONE, true, 0.0, true, 4.0);
 	g_hCV_tbe_tauntflag = CreateConVar("sm_tbe_adminflag", "b", "Admin flag needed to do taunt damage if its set as admin only", FCVAR_NONE);
 	g_hCV_tbe_tauntitems = CreateConVar("sm_tbe_allowtauntitems", "1", "Enables/disables specified taunt items", FCVAR_NONE, true, 0.0, true, 4.0);
-	g_hCV_tbe_tauntitemstimer = CreateConVar("sm_tbe_allowtauntitemstimer", "0", "Timer for taunt items. Players will be forced to stop taunting when this timer runs out", FCVAR_NONE, true, 0.0, true, 300.0);	
+	g_hCV_tbe_tauntitemstimer = CreateConVar("sm_tbe_allowtauntitemstimer", "0", "Timer for taunt items. Players will be forced to stop taunting when this timer runs out", FCVAR_NONE, true, 0.0, true, 300.0);
+	BuildPath(Path_SM, g_sFilename, sizeof(g_sFilename), "configs/tbe_tauntitems.ini");
 	RegAdminCmd("sm_tbe_reloadtauntitems", ReloadItemList, ADMFLAG_GENERIC, "Reloads the config file with taunt item indexes");
 	g_hTauntItems = CreateArray(10, 0);
-	
 	EnabledChanged(g_hCV_tbe_enabled, "", "");
 	HookConVarChange(g_hCV_tbe_enabled, EnabledChanged);
-	
-	AutoExecConfig(true, "Taunt_Blocker_Extended");
 	SetConVarString(g_hCV_tbe_version, PLUGIN_VERSION);
+	AutoExecConfig(true, "Taunt_Blocker_Extended");
+}
+
+public void OnConfigsExecuted()
+{
+	ReloadItemList(0,0);
 }
 
 public Action ReloadItemList(int client, int args)
 {
-	ReadItemList();
-	return Plugin_Continue;
+	File file = OpenFile(g_sFilename, "rt");
+
+	if (!file)
+	{
+		ReplyToCommand(client, "Could not open the config file - tbe_tauntitems.ini!");
+		SetFailState("Could not open the config file - tbe_tauntitems.ini!");
+		return Plugin_Handled;
+	}
+
+	ClearArray(g_hTauntItems);
+
+	while (!IsEndOfFile(file))
+	{
+		char line[255];
+
+		if (!ReadFileLine(file, line, sizeof(line)))
+		{
+			break;
+		}
+
+		if (line[0] == ';')
+		{
+			continue;
+		}
+
+		TrimString(line);
+		int number = StringToInt(line);
+
+		if (number != 0)
+		{
+			PushArrayCell(g_hTauntItems, number);
+		}
+	}
+
+	CloseHandle(file);
+	ReplyToCommand(client, "Taunt Blocker config file tbe_tauntitems.ini loaded!");
+	return Plugin_Handled;
 }
 
 public void EnabledChanged(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	if (GetConVarBool(g_hCV_tbe_enabled))
 	{
-		ReadItemList();
 		AddCommandListener(Cmd_taunt, "taunt");
 		AddCommandListener(Cmd_taunt, "+taunt");
 	}
@@ -79,7 +118,7 @@ public void EnabledChanged(Handle convar, const char[] oldValue, const char[] ne
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage); 
+	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
 public void OnEntityCreated(int building, const char[] classname)
@@ -94,7 +133,7 @@ public void OnEntitySpawned(int building)
 
 public Action Cmd_taunt(int client, char[] cmd, int args)
 {
-	if (!GetConVarBool(g_hCV_tbe_enabled)) 
+	if (!GetConVarBool(g_hCV_tbe_enabled))
 	{
 		return Plugin_Continue;
 	}
@@ -115,35 +154,35 @@ public Action Cmd_taunt(int client, char[] cmd, int args)
 			{
 				return Plugin_Handled;
 			}
-		}		
+		}
 		case 3:
 		{
 			if (IsPlayerHere(client) && GetClientTeam(client) == 2)
 			{
 				return Plugin_Handled;
 			}
-		}		
+		}
 		case 4:
 		{
 			if (IsPlayerHere(client))
 			{
 				char CharAdminFlag[10];
 				GetConVarString(g_hCV_tbe_tauntflag, CharAdminFlag, sizeof(CharAdminFlag));
-				
+
 				if (!IsValidAdmin(client, CharAdminFlag))
 				{
 					return Plugin_Handled;
 				}
 			}
-		}	
+		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
 public Action OnTakeDamage(int client, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	if (!GetConVarBool(g_hCV_tbe_enabled)) 
+	if (!GetConVarBool(g_hCV_tbe_enabled))
 	{
 		return Plugin_Continue;
 	}
@@ -176,7 +215,7 @@ public Action OnTakeDamage(int client, int &attacker, int &inflictor, float &dam
 					}
 				}
 			}
-		}		
+		}
 		case 3:
 		{
 			if (IsPlayerHere(attacker) && GetClientTeam(attacker) == 2)
@@ -189,14 +228,14 @@ public Action OnTakeDamage(int client, int &attacker, int &inflictor, float &dam
 					}
 				}
 			}
-		}		
+		}
 		case 4:
 		{
 			if (IsPlayerHere(attacker))
 			{
 				char CharAdminFlag[10];
 				GetConVarString(g_hCV_tbe_tauntflag, CharAdminFlag, sizeof(CharAdminFlag));
-				
+
 				if (!IsValidAdmin(attacker, CharAdminFlag))
 				{
 					switch (damagecustom)
@@ -208,15 +247,15 @@ public Action OnTakeDamage(int client, int &attacker, int &inflictor, float &dam
 					}
 				}
 			}
-		}	
+		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
 public Action OnBuildingTakeDamage(int building, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	if (!GetConVarBool(g_hCV_tbe_enabled)) 
+	if (!GetConVarBool(g_hCV_tbe_enabled))
 	{
 		return Plugin_Continue;
 	}
@@ -224,7 +263,7 @@ public Action OnBuildingTakeDamage(int building, int &attacker, int &inflictor, 
 	char classname[32];
 	GetEntityClassname(building, classname, sizeof(classname));
 
-	if (!StrEqual(classname, "obj_sentrygun", false) && !StrEqual(classname, "obj_dispenser", false) && !StrEqual(classname, "obj_teleporter", false))
+	if ((strcmp(classname, "obj_sentrygun", false) != 0) && (strcmp(classname, "obj_dispenser", false) != 0) && (strcmp(classname, "obj_teleporter", false) != 0))
 	{
 		return Plugin_Continue;
 	}
@@ -257,7 +296,7 @@ public Action OnBuildingTakeDamage(int building, int &attacker, int &inflictor, 
 					}
 				}
 			}
-		}		
+		}
 		case 3:
 		{
 			if (IsPlayerHere(attacker) && GetClientTeam(attacker) == 2)
@@ -270,14 +309,14 @@ public Action OnBuildingTakeDamage(int building, int &attacker, int &inflictor, 
 					}
 				}
 			}
-		}		
+		}
 		case 4:
 		{
 			if (IsPlayerHere(attacker))
 			{
 				char CharAdminFlag[10];
 				GetConVarString(g_hCV_tbe_tauntflag, CharAdminFlag, sizeof(CharAdminFlag));
-				
+
 				if (!IsValidAdmin(attacker, CharAdminFlag))
 				{
 					switch (damagecustom)
@@ -289,15 +328,15 @@ public Action OnBuildingTakeDamage(int building, int &attacker, int &inflictor, 
 					}
 				}
 			}
-		}	
+		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
 public void TF2_OnConditionAdded(int client, TFCond condition)
 {
-	if (!GetConVarBool(g_hCV_tbe_enabled)) 
+	if (!GetConVarBool(g_hCV_tbe_enabled))
 	{
 		return;
 	}
@@ -305,16 +344,16 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 	if (condition != TFCond_Taunting)
 	{
 		return;
-	}	
+	}
 
 	float titimer = GetConVarFloat(g_hCV_tbe_tauntitemstimer);
 	int tauntid = GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
-	
+
 	switch (GetConVarInt(g_hCV_tbe_tauntitems))
 	{
 		case 0:
 		{
-			if (IsPlayerHere(client) && FindValueInArray(g_hTauntItems, tauntid) != -1)
+			if (IsPlayerHere(client) && (FindValueInArray(g_hTauntItems, tauntid) != -1))
 			{
 				if (titimer == 0.0)
 				{
@@ -346,7 +385,7 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 					}
 				}
 			}
-		}		
+		}
 		case 3:
 		{
 			if (IsPlayerHere(client) && GetClientTeam(client) == 2)
@@ -363,14 +402,14 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 					}
 				}
 			}
-		}		
+		}
 		case 4:
 		{
 			if (IsPlayerHere(client))
 			{
 				char CharAdminFlag[10];
 				GetConVarString(g_hCV_tbe_tauntflag, CharAdminFlag, sizeof(CharAdminFlag));
-				
+
 				if (!IsValidAdmin(client, CharAdminFlag))
 				{
 					if (FindValueInArray(g_hTauntItems, tauntid) != -1)
@@ -386,20 +425,20 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 					}
 				}
 			}
-		}	
+		}
 	}
 }
 
 public Action RemoveTaunt(Handle timer, any data)
 {
 	int client = GetClientOfUserId(data);
-	
+
 	if (IsPlayerHere(client))
 	{
 		if (TF2_IsPlayerInCondition(client, TFCond_Taunting))
 		{
 			int tauntid = GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
-			
+
 			if (FindValueInArray(g_hTauntItems, tauntid) != -1)
 			{
 				TF2_RemoveCondition(client, TFCond_Taunting);
@@ -407,73 +446,32 @@ public Action RemoveTaunt(Handle timer, any data)
 		}
 	}
 
-	return Plugin_Continue;
-}
-
-public void ReadItemList()
-{
-	char Filename[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, Filename, sizeof(Filename), "configs/tbe_tauntitems.ini");
-	File file = OpenFile(Filename, "rt");
-
-	if (!file)
-	{
-		LogError("Could not open the config file - tbe_tauntitems.ini! Setting taunt item blocker to disabled.");
-		SetConVarInt(g_hCV_tbe_tauntitems, 1);
-		return;
-	}
-
-	ClearArray(g_hTauntItems);
-	
-	while (!IsEndOfFile(file))
-	{
-		char line[255];
-
-		if (!ReadFileLine(file, line, sizeof(line)))
-		{
-			break;
-		}
-		
-		if (line[0] == ';')
-		{
-			continue;
-		}
-		
-		TrimString(line);
-		int number = StringToInt(line);
-
-		if (number != 0)
-		{
-			PushArrayCell(g_hTauntItems, number);
-		}
-	}
-	
-	CloseHandle(file);
+	return Plugin_Handled;
 }
 
 bool IsPlayerHere(int client)
 {
-	return (client >= 1 && client <= MaxClients && IsClientConnected(client) && IsClientInGame(client));
+	return (client > 0 && client <= MaxClients && IsClientInGame(client));
 }
 
 bool IsValidAdmin(int client, const char[] flags)
 {
-    if (!IsClientConnected(client)) 
+    if (!IsClientConnected(client))
 	{
         return false;
     }
-	
+
     int IntFlags = ReadFlagString(flags);
-	
-    if ((GetUserFlagBits(client) & IntFlags) == IntFlags) 
+
+    if ((GetUserFlagBits(client) & IntFlags) == IntFlags)
 	{
         return true;
     }
-	
-    if (GetUserFlagBits(client) & ADMFLAG_ROOT) 
+
+    if (GetUserFlagBits(client) & ADMFLAG_ROOT)
 	{
         return true;
     }
-	
+
     return false;
-} 
+}
