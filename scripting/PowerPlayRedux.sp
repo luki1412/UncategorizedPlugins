@@ -4,13 +4,13 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.21"
+#define PLUGIN_VERSION "1.22"
 
 bool g_bPoweredUp[MAXPLAYERS+1] = {false, ...};
 bool g_bPushbackImmunity;
 bool g_bRegen;
 bool g_bReenableOnRespawn;
-float g_fRegenPeriod = 10.0;
+float g_fRegenPeriod = 8.0;
 ConVar g_CVPushbackImmunity = null;
 ConVar g_CVRegen = null;
 ConVar g_CVRegenPeriod = null;
@@ -185,13 +185,13 @@ public Action PowerPlays(int client, int args)
 				{
 					PowerPlay(target_list[i], true);
 					g_bPoweredUp[target_list[i]] = true;
-					LogAction(client, target_list[i], "[PowerPlayRedux] %N enabled PowerPlay on %N", client, target_list[i]);
+					LogAction(client, target_list[i], "%N enabled PowerPlay on %N", client, target_list[i]);
 				}
 				else
 				{
 					PowerPlay(target_list[i], false);
 					g_bPoweredUp[target_list[i]] = false;
-					LogAction(client, target_list[i], "[PowerPlayRedux] %N disabled PowerPlay on %N", client, target_list[i]);
+					LogAction(client, target_list[i], "%N disabled PowerPlay on %N", client, target_list[i]);
 				}
 			}
 		}
