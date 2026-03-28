@@ -5,7 +5,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.09"
+#define PLUGIN_VERSION "1.10"
 
 char g_sFilename[PLATFORM_MAX_PATH];
 ConVar g_hCV_tbe_enabled;
@@ -52,8 +52,8 @@ public void OnPluginStart()
 	g_hTauntItems = CreateArray(10, 0);
 	EnabledChanged(g_hCV_tbe_enabled, "", "");
 	HookConVarChange(g_hCV_tbe_enabled, EnabledChanged);
-	SetConVarString(g_hCV_tbe_version, PLUGIN_VERSION);
 	AutoExecConfig(true, "Taunt_Blocker_Extended");
+	SetConVarString(g_hCV_tbe_version, PLUGIN_VERSION);
 }
 
 public void OnConfigsExecuted()
@@ -371,35 +371,29 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 		}
 		case 2:
 		{
-			if (IsPlayerHere(client) && GetClientTeam(client) == 3)
+			if (IsPlayerHere(client) && (GetClientTeam(client) == 3) && (FindValueInArray(g_hTauntItems, tauntid) != -1))
 			{
-				if (FindValueInArray(g_hTauntItems, tauntid) != -1)
+				if (titimer == 0.0)
 				{
-					if (titimer == 0.0)
-					{
-						TF2_RemoveCondition(client, TFCond_Taunting);
-					}
-					else
-					{
-						CreateTimer(titimer, RemoveTaunt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-					}
+					TF2_RemoveCondition(client, TFCond_Taunting);
+				}
+				else
+				{
+					CreateTimer(titimer, RemoveTaunt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 				}
 			}
 		}
 		case 3:
 		{
-			if (IsPlayerHere(client) && GetClientTeam(client) == 2)
+			if (IsPlayerHere(client) && (GetClientTeam(client) == 2) && (FindValueInArray(g_hTauntItems, tauntid) != -1))
 			{
-				if (FindValueInArray(g_hTauntItems, tauntid) != -1)
+				if (titimer == 0.0)
 				{
-					if (titimer == 0.0)
-					{
-						TF2_RemoveCondition(client, TFCond_Taunting);
-					}
-					else
-					{
-						CreateTimer(titimer, RemoveTaunt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-					}
+					TF2_RemoveCondition(client, TFCond_Taunting);
+				}
+				else
+				{
+					CreateTimer(titimer, RemoveTaunt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 				}
 			}
 		}
@@ -410,18 +404,15 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 				char CharAdminFlag[10];
 				GetConVarString(g_hCV_tbe_tauntflag, CharAdminFlag, sizeof(CharAdminFlag));
 
-				if (!IsValidAdmin(client, CharAdminFlag))
+				if (!IsValidAdmin(client, CharAdminFlag) && (FindValueInArray(g_hTauntItems, tauntid) != -1))
 				{
-					if (FindValueInArray(g_hTauntItems, tauntid) != -1)
+					if (titimer == 0.0)
 					{
-						if (titimer == 0.0)
-						{
-							TF2_RemoveCondition(client, TFCond_Taunting);
-						}
-						else
-						{
-							CreateTimer(titimer, RemoveTaunt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-						}
+						TF2_RemoveCondition(client, TFCond_Taunting);
+					}
+					else
+					{
+						CreateTimer(titimer, RemoveTaunt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 					}
 				}
 			}
@@ -433,16 +424,13 @@ public Action RemoveTaunt(Handle timer, any data)
 {
 	int client = GetClientOfUserId(data);
 
-	if (IsPlayerHere(client))
+	if (IsPlayerHere(client) && TF2_IsPlayerInCondition(client, TFCond_Taunting))
 	{
-		if (TF2_IsPlayerInCondition(client, TFCond_Taunting))
-		{
-			int tauntid = GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
+		int tauntid = GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
 
-			if (FindValueInArray(g_hTauntItems, tauntid) != -1)
-			{
-				TF2_RemoveCondition(client, TFCond_Taunting);
-			}
+		if (FindValueInArray(g_hTauntItems, tauntid) != -1)
+		{
+			TF2_RemoveCondition(client, TFCond_Taunting);
 		}
 	}
 
@@ -461,14 +449,10 @@ bool IsValidAdmin(int client, const char[] flags)
         return false;
     }
 
-    int IntFlags = ReadFlagString(flags);
+    int InputFlags = ReadFlagString(flags);
+    int CurrentFlags = GetUserFlagBits(client);
 
-    if ((GetUserFlagBits(client) & IntFlags) == IntFlags)
-	{
-        return true;
-    }
-
-    if (GetUserFlagBits(client) & ADMFLAG_ROOT)
+    if (((CurrentFlags & InputFlags) == InputFlags) || (CurrentFlags & ADMFLAG_ROOT))
 	{
         return true;
     }
