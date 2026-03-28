@@ -3,9 +3,9 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "1.00"
+#define PLUGIN_VERSION "1.01"
 
-public Extension __ext_Connect = 
+public Extension __ext_Connect =
 {
 	name = "Connect",
 	file = "connect.ext",
@@ -18,7 +18,7 @@ ConVar g_hcvarEnabled;
 ConVar g_hcvarReason;
 forward bool OnClientPreConnectEx(const char[] name, char password[255], const char[] ip, const char[] steamID, char rejectReason[255]);
 
-public Plugin myinfo = 
+public Plugin myinfo =
 {
 	name = "Basic Reserved Slots using Connect",
 	author = "luki1412",
@@ -33,34 +33,30 @@ public void OnPluginStart()
 	g_hcvarEnabled = CreateConVar("sm_brsc_enabled", "1", "Enables/disables this plugin", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_hcvarKickType = CreateConVar("sm_brsc_type", "1", "Who gets kicked out: 1 - Highest ping player, 2 - Longest connection time player, 3 - Random player", FCVAR_NONE, true, 1.0, true, 3.0);
 	g_hcvarReason = CreateConVar("sm_brsc_reason", "Kicked to make room for an admin", "Reason used when kicking players", FCVAR_NONE);
-	
-	SetConVarString(g_hcvarVer, PLUGIN_VERSION);	
+
 	AutoExecConfig(true, "Basic_Reserved_Slots_using_Connect");
+	SetConVarString(g_hcvarVer, PLUGIN_VERSION);
+	delete g_hcvarVer;
 }
 
 public bool OnClientPreConnectEx(const char[] name, char password[255], const char[] ip, const char[] steamID, char rejectReason[255])
 {
-	if (!GetConVarInt(g_hcvarEnabled))
+	if (!GetConVarInt(g_hcvarEnabled) || (GetClientCount(false) < MaxClients))
 	{
 		return true;
 	}
 
-	if (GetClientCount(false) < MaxClients)
-	{
-		return true;	
-	}
-
 	AdminId admin = FindAdminByIdentity(AUTHMETHOD_STEAM, steamID);
-	
+
 	if (admin == INVALID_ADMIN_ID)
 	{
 		return true;
 	}
-	
+
 	if (GetAdminFlag(admin, Admin_Reservation))
 	{
 		int target = SelectKickClient();
-						
+
 		if (target)
 		{
 			char rReason[255];
@@ -68,38 +64,35 @@ public bool OnClientPreConnectEx(const char[] name, char password[255], const ch
 			KickClientEx(target, "%s", rReason);
 		}
 	}
-	
+
 	return true;
 }
 
 int SelectKickClient()
-{	
+{
 	float highestValue;
 	int highestValueId;
-	
 	float highestSpecValue;
 	int highestSpecValueId;
-	
 	bool specFound;
-	
 	float value;
-	
+
 	for (int i = 1; i <= MaxClients; i++)
-	{	
+	{
 		if (!IsClientConnected(i))
 		{
 			continue;
 		}
-	
+
 		int flags = GetUserFlagBits(i);
-		
-		if (IsFakeClient(i) || flags & ADMFLAG_ROOT || flags & ADMFLAG_RESERVATION || CheckCommandAccess(i, "sm_reskick_immunity", ADMFLAG_RESERVATION, false))
+
+		if (IsFakeClient(i) || (flags & ADMFLAG_ROOT) || (flags & ADMFLAG_RESERVATION) || CheckCommandAccess(i, "sm_reskick_immunity", ADMFLAG_RESERVATION, false))
 		{
 			continue;
 		}
-		
+
 		value = 0.0;
-			
+
 		if (IsClientInGame(i))
 		{
 			switch(GetConVarInt(g_hcvarKickType))
@@ -119,9 +112,9 @@ int SelectKickClient()
 			}
 
 			if (IsClientObserver(i))
-			{			
+			{
 				specFound = true;
-				
+
 				if (value > highestSpecValue)
 				{
 					highestSpecValue = value;
@@ -129,18 +122,18 @@ int SelectKickClient()
 				}
 			}
 		}
-		
+
 		if (value >= highestValue)
 		{
 			highestValue = value;
 			highestValueId = i;
 		}
 	}
-	
+
 	if (specFound)
 	{
 		return highestSpecValueId;
 	}
-	
+
 	return highestValueId;
 }
