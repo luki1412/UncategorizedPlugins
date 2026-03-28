@@ -4,7 +4,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.20"
+#define PLUGIN_VERSION "1.21"
 
 bool g_bPoweredUp[MAXPLAYERS+1] = {false, ...};
 bool g_bPushbackImmunity;
@@ -34,9 +34,9 @@ public void OnPluginStart()
 	g_CVRegenPeriod = CreateConVar("sm_ppr_regenperiod", "8.0", "How often to regen HP and ammo for PowerPlay players. Low value = bigger perfomance impact. Default: 8.0", FCVAR_NONE, true, 1.0, true, 999.0);
 	g_CVPushbackImmunity = CreateConVar("sm_ppr_pushbackimmunity", "0", "Add pushback immunity for Powerplay. Takes effect on the next PowerPlay. 1 = yes, 0 = no. Default: 0", FCVAR_NONE, true, 0.0, true, 1.0);
 
-	RegAdminCmd("sm_powerup", PowerPlays, ADMFLAG_SLAY);
-	RegAdminCmd("sm_powerplayredux", PowerPlays, ADMFLAG_SLAY);
-	RegAdminCmd("sm_ppr", PowerPlays, ADMFLAG_SLAY);
+	RegAdminCmd("sm_powerup", PowerPlays, ADMFLAG_SLAY, "Enables PowerPlay on the target");
+	RegAdminCmd("sm_powerplayredux", PowerPlays, ADMFLAG_SLAY, "Enables PowerPlay on the target");
+	RegAdminCmd("sm_ppr", PowerPlays, ADMFLAG_SLAY, "Enables PowerPlay on the target");
 
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	OnRegenChanged(g_CVRegen, "", "");
@@ -120,7 +120,7 @@ public Action PowerPlays(int client, int args)
 {
 	if (args != 0 && args != 2)
 	{
-		ReplyToCommand(client, "Usage: sm_ppr <target> <1/0> \nIf you dont enter a target, it will be used on yourself.");
+		ReplyToCommand(client, "\x04[PowerPlayRedux]\x01 Usage: sm_ppr <target> <1/0> \nIf you dont enter arguments, Powerplay will be toggled on yourself.");
 		return Plugin_Handled;
 	}
 
@@ -147,7 +147,7 @@ public Action PowerPlays(int client, int args)
 	{
 		if (!CheckCommandAccess(client, "sm_powerplayredux_override", ADMFLAG_BAN))
 		{
-			ReplyToCommand(client, "Usage: sm_ppr <target> <1/0> \nIf you dont enter a target, it will be used on yourself.");
+			ReplyToCommand(client, "\x04[PowerPlayRedux]\x01 Usage: sm_ppr <target> <1/0> \nIf you dont enter arguments, Powerplay will be toggled on yourself.");
 			return Plugin_Handled;
 		}
 
@@ -160,11 +160,11 @@ public Action PowerPlays(int client, int args)
 
 		if ((target_count = ProcessTargetString(buffer,	client,	target_list, MAXPLAYERS, COMMAND_FILTER_ALIVE, target_name,	sizeof(target_name), tn_is_ml)) <= 0)
 		{
-			ReplyToTargetError(client, target_count);
+			ReplyToCommand(client, "\x04[PowerPlayRedux]\x01 Invalid target.");
 			return Plugin_Handled;
 		}
 
-		char Enabled[1];
+		char Enabled[2];
 		GetCmdArg(2, Enabled, sizeof(Enabled));
 		int iEnabled = StringToInt(Enabled);
 
