@@ -4,7 +4,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "1.01"
+#define PLUGIN_VERSION "1.02"
 
 ConVar g_hCVCharAdminFlag;
 ConVar g_hCVEnabled;
@@ -25,8 +25,6 @@ float  g_fCurrentLosersEffectDuration  = 0.0;
 int	   g_iCurrentMode				   = -1;
 
 char   g_sCharAdminFlag[1];
-
-float  g_fMax = 340282346638528859811704183484516925440.0;
 
 public Plugin myinfo =
 {
@@ -56,11 +54,12 @@ public void OnPluginStart()
 	g_hCVMode				   = CreateConVar("sm_brpe_mode", "0", "0 - effects are applied to everybody. 1 - only to players with the admin flag. 2 - to all winners plus losers with the admin flag. 3 - to all losers plus winners with the admin flag. Default: 0", FCVAR_NONE, true, 0.0, true, 3.0);
 	g_hCVWinnersEffect		   = CreateConVar("sm_brpe_winners_effect", "52", "Condition from TFCond enum - applied to the players on the winning team. 0 - do nothing. Default: 52", FCVAR_NONE, true, 0.0, true, 999.0);
 	g_hCVLosersEffect		   = CreateConVar("sm_brpe_losers_effect", "24", "Condition from TFCond enum - applied to the players on the losing team. 0 - do nothing. Default: 24", FCVAR_NONE, true, 0.0, true, 999.0);
-	g_hCVWinnersEffectDuration = CreateConVar("sm_brpe_winners_effect_duration", "0", "Duration of the effect, applied to the players on the winning team. 0 - max duration. Default: 0", FCVAR_NONE, true, 0.0, true, g_fMax);
-	g_hCVLosersEffectDuration  = CreateConVar("sm_brpe_losers_effect_duration", "0", "Duration of the effect, applied to the players on the losing team. 0 - max duration. Default: 0", FCVAR_NONE, true, 0.0, true, g_fMax);
+	g_hCVWinnersEffectDuration = CreateConVar("sm_brpe_winners_effect_duration", "0", "Duration of the effect, applied to the players on the winning team. 0 - max duration. Default: 0", FCVAR_NONE, true, 1.0, true, 9999.0);
+	g_hCVLosersEffectDuration  = CreateConVar("sm_brpe_losers_effect_duration", "0", "Duration of the effect, applied to the players on the losing team. 0 - max duration. Default: 0", FCVAR_NONE, true, 1.0, true, 9999.0);
+
 	HookConVarChange(g_hCVEnabled, EnabledChanged);
-	SetConVarString(hCVversioncvar, PLUGIN_VERSION);
 	AutoExecConfig(true, "Bonus_Round_Player_Effects");
+	SetConVarString(hCVversioncvar, PLUGIN_VERSION);
 	EnabledChanged(g_hCVEnabled, "", "");
 }
 
@@ -198,7 +197,7 @@ void SetImmune(int client, bool winner)
 
 	if (duration == 0.0)
 	{
-		duration = g_fMax;
+		duration = TFCondDuration_Infinite;
 	}
 
 	if (effect != 0)
@@ -239,22 +238,18 @@ public void EnabledChanged(Handle convar, const char[] oldValue, const char[] ne
 
 bool IsValidAdmin(int client, const char[] flags)
 {
-	if (IsFakeClient(client))
+    if (!IsClientConnected(client))
 	{
-		return false;
-	}
+        return false;
+    }
 
-	int ibFlags = ReadFlagString(flags);
+    int InputFlags = ReadFlagString(flags);
+    int CurrentFlags = GetUserFlagBits(client);
 
-	if ((GetUserFlagBits(client) & ibFlags) == ibFlags)
+    if (((CurrentFlags & InputFlags) == InputFlags) || (CurrentFlags & ADMFLAG_ROOT))
 	{
-		return true;
-	}
+        return true;
+    }
 
-	if (GetUserFlagBits(client) & ADMFLAG_ROOT)
-	{
-		return true;
-	}
-
-	return false;
+    return false;
 }
