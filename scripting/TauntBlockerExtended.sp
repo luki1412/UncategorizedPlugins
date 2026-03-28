@@ -5,7 +5,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.10"
+#define PLUGIN_VERSION "1.11"
 
 char g_sFilename[PLATFORM_MAX_PATH];
 ConVar g_hCV_tbe_enabled;
@@ -47,6 +47,7 @@ public void OnPluginStart()
 	g_hCV_tbe_tauntflag = CreateConVar("sm_tbe_adminflag", "b", "Admin flag needed to do taunt damage if its set as admin only", FCVAR_NONE);
 	g_hCV_tbe_tauntitems = CreateConVar("sm_tbe_allowtauntitems", "1", "Enables/disables specified taunt items", FCVAR_NONE, true, 0.0, true, 4.0);
 	g_hCV_tbe_tauntitemstimer = CreateConVar("sm_tbe_allowtauntitemstimer", "0", "Timer for taunt items. Players will be forced to stop taunting when this timer runs out", FCVAR_NONE, true, 0.0, true, 300.0);
+
 	BuildPath(Path_SM, g_sFilename, sizeof(g_sFilename), "configs/tbe_tauntitems.ini");
 	RegAdminCmd("sm_tbe_reloadtauntitems", ReloadItemList, ADMFLAG_GENERIC, "Reloads the config file with taunt item indexes");
 	g_hTauntItems = CreateArray(10, 0);
@@ -54,6 +55,7 @@ public void OnPluginStart()
 	HookConVarChange(g_hCV_tbe_enabled, EnabledChanged);
 	AutoExecConfig(true, "Taunt_Blocker_Extended");
 	SetConVarString(g_hCV_tbe_version, PLUGIN_VERSION);
+	delete g_hCV_tbe_version;
 }
 
 public void OnConfigsExecuted()
