@@ -4,7 +4,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "1.26"
+#define PLUGIN_VERSION "1.27"
 
 ConVar g_hCVarsEnabled;
 ConVar g_hCVarsFlag;
@@ -29,13 +29,14 @@ public void OnPluginStart()
 	g_hCVarsReason = CreateConVar("sm_aso_warning", "You are not allowed to spray", "Warning displayed when a player without the admin flag tries to spray", FCVAR_NONE);
 	EnabledChanged(g_hCVarsEnabled, "", "");
 	HookConVarChange(g_hCVarsEnabled, EnabledChanged);
-	SetConVarString(g_hCVarsVer, PLUGIN_VERSION);
 	AutoExecConfig(true, "Admin_Sprays_Only");
+	SetConVarString(g_hCVarsVer, PLUGIN_VERSION);
+	delete g_hCVarsVer;
 }
 
 public void EnabledChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
-	if (GetConVarBool(g_hCVarsEnabled))
+	if (GetConVarBool(convar))
 	{
 		AddTempEntHook("Player Decal", Player_Decal);
 	}
@@ -86,14 +87,10 @@ bool IsValidClient(int client)
 
 bool IsValidAdmin(int client, const char[] flags)
 {
-    int IntFlags = ReadFlagString(flags);
+    int InputFlags = ReadFlagString(flags);
+    int CurrentFlags = GetUserFlagBits(client);
 
-    if ((GetUserFlagBits(client) & IntFlags) == IntFlags)
-	{
-        return true;
-    }
-
-    if (GetUserFlagBits(client) & ADMFLAG_ROOT)
+    if (((CurrentFlags & InputFlags) == InputFlags) || (CurrentFlags & ADMFLAG_ROOT))
 	{
         return true;
     }
